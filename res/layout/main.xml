@@ -1,0 +1,58 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:tools="http://schemas.android.com/tools"
+                android:id="@+id/rlayout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                tools:context=".MainActivity" >
+
+    <TextView
+            android:id="@+id/tv1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+            android:text="@string/instructions1" />
+
+    <TextView
+            android:id="@+id/tv2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_below="@+id/tv1"
+            android:text="@string/instructions2" />
+
+    <EditText
+            android:id="@+id/textBox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_toLeftOf="@+id/enterButton"
+            android:layout_toRightOf="@+id/deleteButton"
+            android:ems="10"
+            android:inputType="textCapSentences"
+            android:text="@string/clear">
+
+        <requestFocus />
+    </EditText>
+
+    <Button
+            android:id="@+id/enterButton"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBaseline="@+id/textBox"
+            android:layout_alignBottom="@+id/textBox"
+            android:layout_alignParentRight="true"
+            android:text="@string/go" />
+
+    <Button
+            android:id="@+id/deleteButton"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBaseline="@+id/textBox"
+            android:layout_alignBottom="@+id/textBox"
+            android:layout_alignParentLeft="true"
+            android:text="@string/delete" />
+
+</RelativeLayout>
