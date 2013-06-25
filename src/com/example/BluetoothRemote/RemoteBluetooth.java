@@ -359,8 +359,7 @@ public class RemoteBluetooth extends Activity {
         mCommandService.handleEnter();
     }
 
-    private void saveBookmark(String url)
-    {
+    private void saveBookmark(String url){
         try
         {
             FileOutputStream fos = openFileOutput("bookmarks.txt", Context.MODE_APPEND);
@@ -375,8 +374,7 @@ public class RemoteBluetooth extends Activity {
         }
     }
 
-    private void toast(String text)
-    {
+    private void toast(String text){
         Context context = getApplicationContext();
         Toast toast = Toast.makeText(context, text, Toast.LENGTH_LONG);
         toast.show();
