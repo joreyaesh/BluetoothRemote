@@ -30,9 +30,9 @@ import java.io.FileOutputStream;
 /**
  * This is the main Activity that displays the current command session.
  */
-public class RemoteBluetooth extends Activity {
+public class BluetoothRemote extends Activity {
     // Debugging
-    private static final String TAG = "RemoteBluetooth";
+    private static final String TAG = "BluetoothRemote";
     private static final boolean D = true;
 
     // Message types sent from the BluetoothCommandService Handler
@@ -379,6 +379,4 @@ public class RemoteBluetooth extends Activity {
         Toast toast = Toast.makeText(context, text, Toast.LENGTH_LONG);
         toast.show();
     }
-
-
 }

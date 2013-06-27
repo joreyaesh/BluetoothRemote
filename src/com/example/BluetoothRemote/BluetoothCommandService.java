@@ -42,7 +42,7 @@ public class BluetoothCommandService {
     private static final boolean D = true;
 
     // Name for the SDP record when creating server socket
-    private static final String NAME_SECURE = "BluetoothChatSecure";
+    private static final String NAME_SECURE = "BluetoothCommandSecure";
 
     // Unique UUID for this application
     private static final UUID MY_UUID_SECURE =
@@ -62,7 +62,7 @@ public class BluetoothCommandService {
     public static final int STATE_CONNECTED = 3;  // now connected to a remote device
 
     /**
-     * Constructor. Prepares a new RemoteBluetooth session.
+     * Constructor. Prepares a new BluetoothRemote session.
      * @param context  The UI Activity Context
      * @param handler  A Handler to send messages back to the UI Activity
      */
@@ -73,7 +73,7 @@ public class BluetoothCommandService {
     }
 
     /**
-     * Set the current state of the chat connection
+     * Set the current state of the command connection
      * @param state  An integer defining the current connection state
      */
     private synchronized void setState(int state) {
@@ -81,7 +81,7 @@ public class BluetoothCommandService {
         mState = state;
 
         // Give the new state to the Handler so the UI Activity can update
-        mHandler.obtainMessage(RemoteBluetooth.MESSAGE_STATE_CHANGE, state, -1).sendToTarget();
+        mHandler.obtainMessage(BluetoothRemote.MESSAGE_STATE_CHANGE, state, -1).sendToTarget();
     }
 
     /**
@@ -91,7 +91,7 @@ public class BluetoothCommandService {
     }
 
     /**
-     * Start the chat service. Specifically start AcceptThread to begin a
+     * Start the command service. Specifically start AcceptThread to begin a
      * session in listening (server) mode. Called by the Activity onResume() */
     public synchronized void start() {
         if (D) Log.d(TAG, "start");
@@ -146,9 +146,9 @@ public class BluetoothCommandService {
         mConnectedThread.start();
 
         // Send the name of the connected device back to the UI Activity
-        Message msg = mHandler.obtainMessage(RemoteBluetooth.MESSAGE_DEVICE_NAME);
+        Message msg = mHandler.obtainMessage(BluetoothRemote.MESSAGE_DEVICE_NAME);
         Bundle bundle = new Bundle();
-        bundle.putString(RemoteBluetooth.DEVICE_NAME, device.getName());
+        bundle.putString(BluetoothRemote.DEVICE_NAME, device.getName());
         msg.setData(bundle);
         mHandler.sendMessage(msg);
 
@@ -196,9 +196,9 @@ public class BluetoothCommandService {
      */
     private void connectionFailed() {
         // Send a failure message back to the Activity
-        Message msg = mHandler.obtainMessage(RemoteBluetooth.MESSAGE_TOAST);
+        Message msg = mHandler.obtainMessage(BluetoothRemote.MESSAGE_TOAST);
         Bundle bundle = new Bundle();
-        bundle.putString(RemoteBluetooth.TOAST, "Unable to connect device");
+        bundle.putString(BluetoothRemote.TOAST, "Unable to connect device");
         msg.setData(bundle);
         mHandler.sendMessage(msg);
 
@@ -211,9 +211,9 @@ public class BluetoothCommandService {
      */
     private void connectionLost() {
         // Send a failure message back to the Activity
-        Message msg = mHandler.obtainMessage(RemoteBluetooth.MESSAGE_TOAST);
+        Message msg = mHandler.obtainMessage(BluetoothRemote.MESSAGE_TOAST);
         Bundle bundle = new Bundle();
-        bundle.putString(RemoteBluetooth.TOAST, "Device connection was lost");
+        bundle.putString(BluetoothRemote.TOAST, "Device connection was lost");
         msg.setData(bundle);
         mHandler.sendMessage(msg);
 
@@ -421,7 +421,7 @@ public class BluetoothCommandService {
             }
         }
 
-        if((System.currentTimeMillis() / 10 - timeLastSend) > 1){ // lower amount of packets sent
+        if((System.currentTimeMillis() / 10 - timeLastSend) > 2){ // lower amount of packets sent
             int x = (int) m.getX(0);
             int y = (int) m.getY(0);
             if(x != 0 || y != 0){
