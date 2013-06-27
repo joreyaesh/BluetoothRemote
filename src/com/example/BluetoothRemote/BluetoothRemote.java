@@ -163,7 +163,7 @@ public class BluetoothRemote extends Activity {
     }
 
     private void setupCommand() {
-        Log.d(TAG, "setupCommand()");
+        if(D)if(D)Log.d(TAG, "setupCommand()");
 
         // Initialize the BluetoothCommandService to perform bluetooth connections
         mCommandService = new BluetoothCommandService(this, mHandler);
@@ -261,7 +261,7 @@ public class BluetoothRemote extends Activity {
                     setupCommand();
                 } else {
                     // User did not enable Bluetooth or an error occurred
-                    Log.d(TAG, "BT not enabled");
+                    if(D)Log.d(TAG, "BT not enabled");
                     Toast.makeText(this, R.string.bt_not_enabled_leaving, Toast.LENGTH_SHORT).show();
                     finish();
                 }
@@ -281,7 +281,7 @@ public class BluetoothRemote extends Activity {
                 IntentResult scanResult = IntentIntegrator.parseActivityResult(
                         requestCode, resultCode, data);
                 if (scanResult != null) {
-                    Log.d("PS", scanResult.toString());
+                    if(D)Log.d(TAG, scanResult.toString());
                     String address = getAddress(scanResult.getContents());
                     connectDevice(address);
                 }
@@ -289,23 +289,34 @@ public class BluetoothRemote extends Activity {
     }
 
     private String getAddress(String tmp){
-        String[] strings = tmp.split("");
-        for(int i = 2; i < tmp.length()-1 ; i += 2){
-            strings[i] = strings[i].replace(strings[i], (strings[i]+":"));
+        try{
+            String[] strings = tmp.split("");
+            for(int i = 2; i < tmp.length()-1 ; i += 2){
+                strings[i] = strings[i].replace(strings[i], (strings[i]+":"));
+            }
+            StringBuilder builder = new StringBuilder();
+            for(String s : strings) {
+                builder.append(s);
+            }
+            String address = builder.toString();
+            return address;
+        } catch(NullPointerException e){
+            toast("No QR code received");
+            if(D)Log.d(TAG, "No QR code received");
         }
-        StringBuilder builder = new StringBuilder();
-        for(String s : strings) {
-            builder.append(s);
-        }
-        String address = builder.toString();
-        return address;
+        return "";
     }
 
     private void connectDevice(String address) {
-        // Get the BluetoothDevice object
-        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
-        // Attempt to connect to the device
-        mCommandService.connect(device);
+        try{
+            // Get the BluetoothDevice object
+            BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
+            // Attempt to connect to the device
+            mCommandService.connect(device);
+        } catch(IllegalArgumentException e){
+            if(D)Log.d(TAG, "Incorrect bluetooth address received from QR code");
+        }
+
     }
 
     @Override
