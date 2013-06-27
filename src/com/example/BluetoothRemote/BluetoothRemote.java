@@ -25,7 +25,11 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.android.IntentIntegrator;
+import com.example.android.IntentResult;
+
 import java.io.FileOutputStream;
+import java.util.Arrays;
 
 /**
  * This is the main Activity that displays the current command session.
@@ -244,23 +248,24 @@ public class BluetoothRemote extends Activity {
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if(D) Log.d(TAG, "onActivityResult " + resultCode);
         switch (requestCode) {
-        case REQUEST_CONNECT_DEVICE_SECURE:
-            // When DeviceListActivity returns with a device to connect
-            if (resultCode == Activity.RESULT_OK) {
-                connectDevice(data);
-            }
-            break;
-        case REQUEST_ENABLE_BT:
-            // When the request to enable Bluetooth returns
-            if (resultCode == Activity.RESULT_OK) {
-                // Bluetooth is now enabled, so set up a command session
-                setupCommand();
-            } else {
-                // User did not enable Bluetooth or an error occurred
-                Log.d(TAG, "BT not enabled");
-                Toast.makeText(this, R.string.bt_not_enabled_leaving, Toast.LENGTH_SHORT).show();
-                finish();
-            }
+            case REQUEST_CONNECT_DEVICE_SECURE:
+                // When DeviceListActivity returns with a device to connect
+                if (resultCode == Activity.RESULT_OK) {
+                    connectDevice(data.getExtras().getString(DeviceListActivity.EXTRA_DEVICE_ADDRESS));
+                }
+                break;
+            case REQUEST_ENABLE_BT:
+                // When the request to enable Bluetooth returns
+                if (resultCode == Activity.RESULT_OK) {
+                    // Bluetooth is now enabled, so set up a command session
+                    setupCommand();
+                } else {
+                    // User did not enable Bluetooth or an error occurred
+                    Log.d(TAG, "BT not enabled");
+                    Toast.makeText(this, R.string.bt_not_enabled_leaving, Toast.LENGTH_SHORT).show();
+                    finish();
+                }
+                break;
             case REQUEST_BOOKMARK:
                 // When the request to open a bookmark returns
                 if(resultCode == Activity.RESULT_OK){
@@ -271,14 +276,32 @@ public class BluetoothRemote extends Activity {
                     // Open the bookmark
                     openBookmark(url);
                 }
+                break;
+            default:
+                IntentResult scanResult = IntentIntegrator.parseActivityResult(
+                        requestCode, resultCode, data);
+                if (scanResult != null) {
+                    Log.d("PS", scanResult.toString());
+                    String address = getAddress(scanResult.getContents());
+                    connectDevice(address);
+                }
         }
     }
 
-    private void connectDevice(Intent data) {
-        // Get the device MAC address
-        String address;
-        address = data.getExtras()
-            .getString(DeviceListActivity.EXTRA_DEVICE_ADDRESS);
+    private String getAddress(String tmp){
+        String[] strings = tmp.split("");
+        for(int i = 2; i < tmp.length()-1 ; i += 2){
+            strings[i] = strings[i].replace(strings[i], (strings[i]+":"));
+        }
+        StringBuilder builder = new StringBuilder();
+        for(String s : strings) {
+            builder.append(s);
+        }
+        String address = builder.toString();
+        return address;
+    }
+
+    private void connectDevice(String address) {
         // Get the BluetoothDevice object
         BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
         // Attempt to connect to the device
@@ -317,6 +340,11 @@ public class BluetoothRemote extends Activity {
                 // Launch the BookmarkListActivity to see all bookmarks
                 serverIntent = new Intent(this, BookmarkListActivity.class);
                 startActivityForResult(serverIntent, REQUEST_BOOKMARK);
+                return true;
+            case R.id.scan_qr_code:
+                // Launch the qr code scanner
+                IntentIntegrator integrator = new IntentIntegrator(this);
+                integrator.initiateScan();
                 return true;
         }
         return false;

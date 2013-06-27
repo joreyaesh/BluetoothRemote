@@ -27,6 +27,7 @@
     <!-- Options Menu -->
     <string name="secure_connect">Connect</string>
     <string name="discoverable">Make discoverable</string>
+    <string name="scan_qr_code">Scan QR Code</string>
     <string name="menu_new_tab">New Tab</string>
     <string name="menu_add_bookmark">Add Bookmark</string>
     <string name="menu_open_bookmark">Open Bookmark...</string>
