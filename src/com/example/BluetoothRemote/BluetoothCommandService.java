@@ -152,6 +152,13 @@ public class BluetoothCommandService {
         msg.setData(bundle);
         mHandler.sendMessage(msg);
 
+        // Send the address of the connected device back to the UI Activity
+        msg = mHandler.obtainMessage(BluetoothRemote.MESSAGE_DEVICE_ADDRESS);
+        bundle = new Bundle();
+        bundle.putString(BluetoothRemote.DEVICE_ADDRESS, device.getAddress());
+        msg.setData(bundle);
+        mHandler.sendMessage(msg);
+
         setState(STATE_CONNECTED);
     }
 

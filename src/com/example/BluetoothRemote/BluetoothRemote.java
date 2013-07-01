@@ -41,10 +41,12 @@ public class BluetoothRemote extends Activity {
 
     // Message types sent from the BluetoothCommandService Handler
     public static final int MESSAGE_STATE_CHANGE = 1;
+    public static final int MESSAGE_DEVICE_ADDRESS = 3;
     public static final int MESSAGE_DEVICE_NAME = 4;
     public static final int MESSAGE_TOAST = 5;
 
     // Key names received from the BluetoothCommandService Handler
+    public static final String DEVICE_ADDRESS = "device_address";
     public static final String DEVICE_NAME = "device_name";
     public static final String TOAST = "toast";
 
@@ -59,6 +61,8 @@ public class BluetoothRemote extends Activity {
     private Button enterButton;
     private Button deleteButton;
 
+    // Address of the connected device
+    private String mConnectedDeviceAddress = null;
     // Name of the connected device
     private String mConnectedDeviceName = null;
     // Local Bluetooth adapter
@@ -159,6 +163,10 @@ public class BluetoothRemote extends Activity {
               // Start the Bluetooth command services
               mCommandService.start();
             }
+            // Attempt to connect to the last connected device
+            else if(mConnectedDeviceAddress != null){
+                connectDevice(mConnectedDeviceAddress);
+            }
         }
     }
 
@@ -237,6 +245,9 @@ public class BluetoothRemote extends Activity {
                 Toast.makeText(getApplicationContext(), "Connected to "
                                + mConnectedDeviceName, Toast.LENGTH_SHORT).show();
                 break;
+            case MESSAGE_DEVICE_ADDRESS:
+                mConnectedDeviceAddress = msg.getData().getString(DEVICE_ADDRESS);
+                    break;
             case MESSAGE_TOAST:
                 Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
                                Toast.LENGTH_SHORT).show();
@@ -251,7 +262,8 @@ public class BluetoothRemote extends Activity {
             case REQUEST_CONNECT_DEVICE_SECURE:
                 // When DeviceListActivity returns with a device to connect
                 if (resultCode == Activity.RESULT_OK) {
-                    connectDevice(data.getExtras().getString(DeviceListActivity.EXTRA_DEVICE_ADDRESS));
+                    connectDevice(data.getExtras()
+                            .getString(DeviceListActivity.EXTRA_DEVICE_ADDRESS));
                 }
                 break;
             case REQUEST_ENABLE_BT:
