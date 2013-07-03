@@ -4,7 +4,7 @@
     <string name="app_name">BluetoothRemote</string>
 
     <!--  BluetoothRemote -->
-    <string name="go">Go</string>
+    <string name="enter">Enter</string>
     <string name="clear"></string>
     <string name="delete">Del</string>
     <string name="instructions1">Tap to left-click</string>

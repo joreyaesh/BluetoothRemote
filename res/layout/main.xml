@@ -43,7 +43,7 @@
             android:layout_alignBaseline="@+id/textBox"
             android:layout_alignBottom="@+id/textBox"
             android:layout_alignParentRight="true"
-            android:text="@string/go" />
+            android:text="@string/enter" />
 
     <Button
             android:id="@+id/deleteButton"
