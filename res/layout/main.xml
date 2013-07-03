@@ -32,7 +32,7 @@
             android:inputType="textCapSentences"
             android:text="@string/clear">
 
-        <requestFocus />
+
     </EditText>
 
     <Button
@@ -54,5 +54,4 @@
             android:layout_alignBottom="@+id/textBox"
             android:layout_alignParentLeft="true"
             android:text="@string/delete" />
-
 </RelativeLayout>

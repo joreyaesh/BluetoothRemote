@@ -29,7 +29,6 @@ import com.example.android.IntentIntegrator;
 import com.example.android.IntentResult;
 
 import java.io.FileOutputStream;
-import java.util.Arrays;
 
 /**
  * This is the main Activity that displays the current command session.
@@ -52,6 +51,7 @@ public class BluetoothRemote extends Activity {
 
     // Intent request codes
     private static final int REQUEST_CONNECT_DEVICE_SECURE = 1;
+    private static final int REQUEST_QR_CODE = 2;
     private static final int REQUEST_ENABLE_BT = 3;
     private static final int REQUEST_BOOKMARK = 5;
 
@@ -130,6 +130,11 @@ public class BluetoothRemote extends Activity {
             Toast.makeText(this, "Bluetooth is not available", Toast.LENGTH_LONG).show();
             finish();
         }
+
+        // Launch the qr code scanner for initial connection
+        IntentIntegrator integrator = new IntentIntegrator(this);
+        integrator.initiateScan();
+
     }
 
     @Override
@@ -158,13 +163,16 @@ public class BluetoothRemote extends Activity {
         // not enabled during onStart(), so we were paused to enable it...
         // onResume() will be called when ACTION_REQUEST_ENABLE activity returns.
         if (mCommandService != null) {
+            // Forces update of the connection's state
+            mCommandService.checkConnection();
             // Only if the state is STATE_NONE, do we know that we haven't started already
             if (mCommandService.getState() == BluetoothCommandService.STATE_NONE) {
-              // Start the Bluetooth command services
-              mCommandService.start();
+                // Start the Bluetooth command services
+                mCommandService.start();
             }
             // Attempt to connect to the last connected device
-            else if(mConnectedDeviceAddress != null){
+            else if(mConnectedDeviceAddress != null &&
+                    mCommandService.getState() == BluetoothCommandService.STATE_LISTEN){
                 connectDevice(mConnectedDeviceAddress);
             }
         }
@@ -234,6 +242,7 @@ public class BluetoothRemote extends Activity {
                     setStatus(R.string.title_connecting);
                     break;
                 case BluetoothCommandService.STATE_LISTEN:
+                    break;
                 case BluetoothCommandService.STATE_NONE:
                     setStatus(R.string.title_not_connected);
                     break;
@@ -289,18 +298,20 @@ public class BluetoothRemote extends Activity {
                     openBookmark(url);
                 }
                 break;
-            default:
+            case REQUEST_QR_CODE:
                 IntentResult scanResult = IntentIntegrator.parseActivityResult(
                         requestCode, resultCode, data);
                 if (scanResult != null) {
                     if(D)Log.d(TAG, scanResult.toString());
-                    String address = getAddress(scanResult.getContents());
+                    String address = formatAddress(scanResult.getContents());
                     connectDevice(address);
                 }
+            default:
+                if(D)Log.d(TAG, "Incorrect activity result returned");
         }
     }
 
-    private String getAddress(String tmp){
+    private String formatAddress(String tmp){
         try{
             String[] strings = tmp.split("");
             for(int i = 2; i < tmp.length()-1 ; i += 2){

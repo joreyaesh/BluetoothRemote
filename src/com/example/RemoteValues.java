@@ -1,5 +1,6 @@
 package com.example;
 public interface RemoteValues {
+    public static final int CHECK_CONNECTION = -1;
 	public static final int TYPE = 0;
 	public static final int MOUSE_LEFT = 1;
 	public static final int MOUSE_RIGHT = 2;

@@ -1,6 +1,7 @@
 
 package com.example.BluetoothRemote;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.UUID;
 
@@ -29,6 +30,7 @@ public class BluetoothCommandService {
     private long timeLastSend = System.currentTimeMillis() / 10;
     private int mPreviousX = -1;
     private int mPreviousY = -1;
+    private int mPreviousScrollY = -1;
     private int downXPosition = -1;
     private int downYPosition = -1;
     private int upXPosition = -1;
@@ -41,12 +43,9 @@ public class BluetoothCommandService {
     private static final String TAG = "BluetoothCommandService";
     private static final boolean D = true;
 
-    // Name for the SDP record when creating server socket
-    private static final String NAME_SECURE = "BluetoothCommandSecure";
-
     // Unique UUID for this application
     private static final UUID MY_UUID_SECURE =
-        UUID.fromString("002b8631-0000-1000-8000-00805f9b34fb");
+            UUID.fromString("002b8631-0000-1000-8000-00805f9b34fb");
 
     // Member fields
     private final BluetoothAdapter mAdapter;
@@ -54,6 +53,8 @@ public class BluetoothCommandService {
     private ConnectThread mConnectThread;
     private ConnectedThread mConnectedThread;
     private int mState;
+    private BluetoothSocket mSocket;
+    private OutputStream mOutStream;
 
     // Constants that indicate the current connection state
     public static final int STATE_NONE = 0;       // we're doing nothing
@@ -70,6 +71,7 @@ public class BluetoothCommandService {
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mState = STATE_NONE;
         mHandler = handler;
+        mSocket = null;
     }
 
     /**
@@ -96,11 +98,19 @@ public class BluetoothCommandService {
     public synchronized void start() {
         if (D) Log.d(TAG, "start");
 
+        mSocket = null;
+
         // Cancel any thread attempting to make a connection
-        if (mConnectThread != null) {mConnectThread.cancel(); mConnectThread = null;}
+        if (mConnectThread != null) {
+            mConnectThread.cancel();
+            mConnectThread = null;
+        }
 
         // Cancel any thread currently running a connection
-        if (mConnectedThread != null) {mConnectedThread.cancel(); mConnectedThread = null;}
+        if (mConnectedThread != null) {
+            mConnectedThread.cancel();
+            mConnectedThread = null;
+        }
 
         setState(STATE_LISTEN);
     }
@@ -112,13 +122,21 @@ public class BluetoothCommandService {
     public synchronized void connect(BluetoothDevice device) {
         if (D) Log.d(TAG, "connect to: " + device);
 
+        mSocket = null;
+
         // Cancel any thread attempting to make a connection
         if (mState == STATE_CONNECTING) {
-            if (mConnectThread != null) {mConnectThread.cancel(); mConnectThread = null;}
+            if (mConnectThread != null) {
+                mConnectThread.cancel();
+                mConnectThread = null;
+            }
         }
 
         // Cancel any thread currently running a connection
-        if (mConnectedThread != null) {mConnectedThread.cancel(); mConnectedThread = null;}
+        if (mConnectedThread != null) {
+            mConnectedThread.cancel();
+            mConnectedThread = null;
+        }
 
         // Start the thread to connect with the given device
         mConnectThread = new ConnectThread(device);
@@ -136,10 +154,16 @@ public class BluetoothCommandService {
         if (D) Log.d(TAG, "connected, Socket Type:" + socketType);
 
         // Cancel the thread that completed the connection
-        if (mConnectThread != null) {mConnectThread.cancel(); mConnectThread = null;}
+        if (mConnectThread != null) {
+            mConnectThread.cancel();
+            mConnectThread = null;
+        }
 
         // Cancel any thread currently running a connection
-        if (mConnectedThread != null) {mConnectedThread.cancel(); mConnectedThread = null;}
+        if (mConnectedThread != null) {
+            mConnectedThread.cancel();
+            mConnectedThread = null;
+        }
 
         // Start the thread to manage the connection and perform transmissions
         mConnectedThread = new ConnectedThread(socket, socketType);
@@ -235,7 +259,6 @@ public class BluetoothCommandService {
      * succeeds or fails.
      */
     private class ConnectThread extends Thread {
-        private final BluetoothSocket mmSocket;
         private final BluetoothDevice mmDevice;
         private String mSocketType;
 
@@ -252,7 +275,7 @@ public class BluetoothCommandService {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            mmSocket = tmp;
+            mSocket = tmp;
         }
 
         public void run() {
@@ -266,11 +289,11 @@ public class BluetoothCommandService {
             try {
                 // This is a blocking call and will only return on a
                 // successful connection or an exception
-                mmSocket.connect();
+                mSocket.connect();
             } catch (Exception e) {
                 // Close the socket
                 try {
-                    mmSocket.close();
+                    mSocket.close();
                 } catch (Exception e2) {
                     Log.e(TAG, "unable to close() " + mSocketType +
                             " socket during connection failure", e2);
@@ -285,12 +308,14 @@ public class BluetoothCommandService {
             }
 
             // Start the connected thread
-            connected(mmSocket, mmDevice, mSocketType);
+            connected(mSocket, mmDevice, mSocketType);
         }
 
         public void cancel() {
             try {
-                mmSocket.close();
+                mSocket.close();
+                mSocket = null;
+
             } catch (Exception e) {
                 Log.e(TAG, "close() of connect " + mSocketType + " socket failed", e);
             }
@@ -302,12 +327,9 @@ public class BluetoothCommandService {
      * It handles all incoming and outgoing transmissions.
      */
     private class ConnectedThread extends Thread {
-        final BluetoothSocket mmSocket;
-        final OutputStream mmOutStream;
-
         public ConnectedThread(BluetoothSocket socket, String socketType) {
             Log.d(TAG, "create ConnectedThread: " + socketType);
-            mmSocket = socket;
+            mSocket = socket;
             OutputStream tmpOut = null;
 
             // Get the BluetoothSocket output stream
@@ -316,7 +338,7 @@ public class BluetoothCommandService {
             } catch (Exception e) {
                 Log.e(TAG, "temp sockets not created", e);
             }
-            mmOutStream = tmpOut;
+            mOutStream = tmpOut;
         }
 
         public void run() {
@@ -329,20 +351,32 @@ public class BluetoothCommandService {
          */
         public void write(byte[] buffer) {
             try {
-                mmOutStream.write(buffer);
-                mmOutStream.flush();
-            } catch (Exception e) {
+                mOutStream.write(buffer);
+                mOutStream.flush();
+            } catch (IOException e) {
                 Log.e(TAG, "Exception during write", e);
+                connectionLost();
             }
         }
 
         public void cancel() {
             try {
-                mmSocket.close();
+                mSocket.close();
+                mSocket = null;
             } catch (Exception e) {
                 Log.e(TAG, "close() of connect socket failed", e);
             }
         }
+    }
+
+    public void checkConnection() {
+        RemoteCommand rcm = new RemoteCommand();
+        byte[] buffer;
+
+        rcm.command = RemoteValues.CHECK_CONNECTION;
+
+        buffer = rcm.getByteArray();
+        write(buffer);
     }
 
     public void handleNewTab() {
@@ -388,7 +422,6 @@ public class BluetoothCommandService {
 
         buffer = rcm.getByteArray();
         write(buffer);
-
     }
 
     public void handleLeftClick() {
@@ -428,52 +461,53 @@ public class BluetoothCommandService {
             }
         }
 
-        if((System.currentTimeMillis() / 10 - timeLastSend) > 2){ // lower amount of packets sent
-            int x = (int) m.getX(0);
-            int y = (int) m.getY(0);
-            if(x != 0 || y != 0){
-                int action = m.getActionMasked();
-                if(action != MotionEvent.ACTION_MOVE){
+
+            if((System.currentTimeMillis() / 10 - timeLastSend) > 1){ // lower amount of packets sent
+                int x = (int) m.getX();
+                int y = (int) m.getY();
+                if(x != 0 || y != 0){
+                    int action = m.getActionMasked();
+                    if(action != MotionEvent.ACTION_MOVE){
+                        mPreviousX = x;
+                        mPreviousY = y;
+                    }
+
+                    RemoteCommand rcm = new RemoteCommand();
+                    byte[] buffer;
+
+                    int dx = x - mPreviousX;
+                    int dy = y - mPreviousY;
+
+                    rcm.command = RemoteValues.MOVE_MOUSE_BY;
+
+                    parameter1 = dx;
+                    parameter2 = dy;
+
+                    // re-init
+                    rcm.parameter1 = parameter1;
+                    rcm.parameter2 = parameter2;
+
+                    buffer = rcm.getByteArray();
+                    write(buffer);
+                    timeLastSend = System.currentTimeMillis() / 10;
+                    parameter1= 0;
+                    parameter2= 0;
+
                     mPreviousX = x;
                     mPreviousY = y;
                 }
-
-                RemoteCommand rcm = new RemoteCommand();
-                byte[] buffer;
-
-                int dx = x - mPreviousX;
-                int dy = y - mPreviousY;
-
-                rcm.command = RemoteValues.MOVE_MOUSE_BY;
-
-                parameter1 = dx;
-                parameter2 = dy;
-
-                // re-init
-                rcm.parameter1 = parameter1;
-                rcm.parameter2 = parameter2;
-
-                buffer = rcm.getByteArray();
-                write(buffer);
-                timeLastSend = System.currentTimeMillis() / 10;
-                parameter1= 0;
-                parameter2= 0;
-
-                mPreviousX = x;
-                mPreviousY = y;
             }
         }
-    }
 
     public void handleMultiTouch(MotionEvent m) {
         if(m.getActionMasked() == MotionEvent.ACTION_POINTER_DOWN){ // for recognizing a tap rather than a move
-            downXPosition = (int) m.getX(1);
-            downYPosition = (int) m.getY(1);
+            downXPosition = (int) m.getX();
+            downYPosition = (int) m.getY();
         }
 
         else if(m.getActionMasked() == MotionEvent.ACTION_POINTER_UP){ // for recognizing a tap rather than a move
-            upXPosition = (int) m.getX(1);
-            upYPosition = (int) m.getY(1);
+            upXPosition = (int) m.getX();
+            upYPosition = (int) m.getY();
 
             int dx = Math.abs(upXPosition - downXPosition);
             int dy = Math.abs(upYPosition - downYPosition);
@@ -482,11 +516,11 @@ public class BluetoothCommandService {
             }
         }
 
-        int y = (int) m.getY(0);
+        int y = (int) m.getY();
         if(y != 0){
             int action = m.getActionMasked();
             if(action != MotionEvent.ACTION_MOVE){
-                mPreviousY = y;
+                mPreviousScrollY = y;
             }
 
             RemoteCommand rcm = new RemoteCommand();
@@ -494,13 +528,13 @@ public class BluetoothCommandService {
 
             rcm.command = RemoteValues.MOUSE_SCROLL;
 
-            int dy = y - mPreviousY;
+            int dy = y - mPreviousScrollY;
 
             scrollAmount += dy;
 
             if(scrollAmount >= 50 || scrollAmount <= -50){
 
-                parameter1 = (int)(scrollAmount/50);
+                parameter1 = scrollAmount/50;
 
                 // re-init
                 rcm.parameter1 = parameter1;
@@ -512,10 +546,12 @@ public class BluetoothCommandService {
                 scrollAmount = 0;
             }
 
-            mPreviousY = y;
+            mPreviousScrollY = y;
+
 
             // to avoid incorrect mouse movements after scrolling
-            mPreviousX = (int) m.getX(0);
+            mPreviousX = (int) m.getX();
+            mPreviousY = (int) m.getY();
         }
     }
 
