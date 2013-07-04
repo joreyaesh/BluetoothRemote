@@ -28,7 +28,14 @@ import android.widget.Toast;
 import com.example.android.IntentIntegrator;
 import com.example.android.IntentResult;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 
 /**
  * This is the main Activity that displays the current command session.
@@ -53,7 +60,7 @@ public class BluetoothRemote extends Activity {
     private static final int REQUEST_CONNECT_DEVICE_SECURE = 1;
     private static final int REQUEST_QR_CODE = 2;
     private static final int REQUEST_ENABLE_BT = 3;
-    private static final int REQUEST_BOOKMARK = 5;
+    private static final int REQUEST_BOOKMARK = 4;
 
     // Layout Views
     private RelativeLayout myLayout;
@@ -69,6 +76,9 @@ public class BluetoothRemote extends Activity {
     private BluetoothAdapter mBluetoothAdapter = null;
     // Member object for the command services
     private BluetoothCommandService mCommandService = null;
+
+    // File to save bookmarks to
+    private String filename = "bookmarks.txt";
 
 
     @Override
@@ -127,7 +137,7 @@ public class BluetoothRemote extends Activity {
 
         // If the adapter is null, then Bluetooth is not supported
         if (mBluetoothAdapter == null) {
-            Toast.makeText(this, "Bluetooth is not available", Toast.LENGTH_LONG).show();
+            toast("Bluetooth is not available");
             finish();
         }
 
@@ -251,15 +261,13 @@ public class BluetoothRemote extends Activity {
             case MESSAGE_DEVICE_NAME:
                 // save the connected device's name
                 mConnectedDeviceName = msg.getData().getString(DEVICE_NAME);
-                Toast.makeText(getApplicationContext(), "Connected to "
-                               + mConnectedDeviceName, Toast.LENGTH_SHORT).show();
+                toast("Connected to " + mConnectedDeviceName);
                 break;
             case MESSAGE_DEVICE_ADDRESS:
                 mConnectedDeviceAddress = msg.getData().getString(DEVICE_ADDRESS);
                     break;
             case MESSAGE_TOAST:
-                Toast.makeText(getApplicationContext(), msg.getData().getString(TOAST),
-                               Toast.LENGTH_SHORT).show();
+                toast(msg.getData().getString(TOAST));
                 break;
             }
         }
@@ -283,7 +291,7 @@ public class BluetoothRemote extends Activity {
                 } else {
                     // User did not enable Bluetooth or an error occurred
                     if(D)Log.d(TAG, "BT not enabled");
-                    Toast.makeText(this, R.string.bt_not_enabled_leaving, Toast.LENGTH_SHORT).show();
+                    toast(getResources().getString(R.string.bt_not_enabled_leaving).toString());
                     finish();
                 }
                 break;
@@ -294,8 +302,20 @@ public class BluetoothRemote extends Activity {
                     String url;
                     url = data.getExtras()
                             .getString(BookmarkListActivity.EXTRA_BOOKMARK_URL);
-                    // Open the bookmark
-                    openBookmark(url);
+                    // Get boolean to tell whether to open or delete bookmark
+                    boolean open;
+                    open = data.getExtras()
+                            .getBoolean(BookmarkListActivity.EXTRA_BOOKMARK_OPEN);
+                    // If the request was to open a bookmark
+                    if(open){
+                        // Open the bookmark
+                        openBookmark(url);
+                    }
+                    // Else if the request was to delete a bookmark
+                    else {
+                        deleteBookmark(url);
+                    }
+
                 }
                 break;
             case REQUEST_QR_CODE:
@@ -384,6 +404,12 @@ public class BluetoothRemote extends Activity {
         return false;
     }
 
+    /**
+     * Prompts the user to add a bookmark, and then calls {@link #saveBookmarkToFile(String)}
+     * to save the url to bookmarks.txt.
+     * @see #saveBookmarkToFile(String)
+     * @see #deleteBookmark(String)
+     */
     private void addBookmark() {
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
 
@@ -397,7 +423,7 @@ public class BluetoothRemote extends Activity {
         alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 String url = input.getText().toString();
-                saveBookmark(url);
+                saveBookmarkToFile(url);
             }
         });
 
@@ -410,6 +436,35 @@ public class BluetoothRemote extends Activity {
         alert.show();
     }
 
+    /**
+     * Adds a line to the end of bookmarks.txt containing the url given.
+     * @param url The url to add
+     * @return True if the bookmark was added, False otherwise
+     * @see #addBookmark()
+     */
+    private boolean saveBookmarkToFile(String url){
+        boolean success = true;
+        try {
+            FileOutputStream fos = openFileOutput(filename, Context.MODE_APPEND);
+            fos.write(url.getBytes());
+            fos.write(System.getProperty("line.separator").getBytes());
+            fos.close();
+        }
+        catch (Exception e) {
+            success = false;
+            toast("Error saving bookmark");
+        }
+        if(success) {
+            toast("Bookmark successfully saved");
+        }
+        return success;
+    }
+
+    /**
+     * Sends commands to the connected {@link #mCommandService BluetoothCommandService}
+     * to open the URL as a new tab on the server.
+     * @param url the URL to open on the server
+     */
     public void openBookmark(String url){
         mCommandService.handleNewTab();
         mCommandService.handleText(url);
@@ -421,19 +476,78 @@ public class BluetoothRemote extends Activity {
         mCommandService.handleEnter();
     }
 
-    private void saveBookmark(String url){
-        try
-        {
-            FileOutputStream fos = openFileOutput("bookmarks.txt", Context.MODE_APPEND);
-            fos.write(url.getBytes());
-            fos.write(System.getProperty("line.separator").getBytes());
-            fos.close();
-            toast("Bookmark successfully saved.");
+    /**
+     * Finds the line in bookmarks.txt which corresponds to the {@link String}
+     * url given, and calls {@link #removeBookmarkFromFile(int)} to delete
+     * the line from bookmarks.txt.
+     * @param url The url to delete
+     * @return True if the bookmark was deleted, False otherwise
+     * @see #removeBookmarkFromFile(int)
+     * @see #addBookmark()
+     */
+    private boolean deleteBookmark(String url){
+        boolean found = false;
+        int line = 1;
+        try {
+            FileInputStream fis = openFileInput(filename);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
+            String bookmark;
+            bookmark = reader.readLine();
+            while (bookmark != null){
+                if(bookmark.equals(url)){
+                    found = true;
+                    removeBookmarkFromFile(line);
+                    break;
+                }
+                bookmark = reader.readLine();
+                line += 1;
+            }
+            reader.close();
+            fis.close();
+        } catch (Exception e) {
+            toast("Error deleting bookmark");
         }
-        catch (Exception ex)
-        {
-            toast("Error saving bookmark: " + ex.getLocalizedMessage());
+        if(found){
+            toast("Bookmark successfully deleted");
         }
+        return found;
+    }
+
+    /**
+     * Removes the given line from bookmarks.txt.
+     * @param lineNumber The line to delete from the file
+     * @throws IOException
+     * @see #deleteBookmark(String)
+     */
+    private void removeBookmarkFromFile(int lineNumber) {
+        FileOutputStream tmp = null;
+        FileInputStream fis = null;
+        try {
+            tmp = openFileOutput("tmp", Context.MODE_APPEND);
+            fis = openFileInput(filename);
+            BufferedReader br = new BufferedReader(new InputStreamReader(fis));
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(tmp));
+
+            for (int i = 1; i < lineNumber; i++)
+                bw.write(String.format("%s%n", br.readLine()));
+
+            br.readLine();
+
+            String line;
+            while (null != (line = br.readLine()))
+                bw.write(String.format("%s%n", line));
+
+            br.close();
+            bw.close();
+
+            Context context = getApplicationContext();
+            File oldFile = context.getFileStreamPath(filename);
+            File newFile = context.getFileStreamPath("tmp");
+            newFile.renameTo(oldFile);
+        } catch (IOException e) {
+            if(D)Log.e(TAG, e.getLocalizedMessage());
+        }
+
     }
 
     private void toast(String text){

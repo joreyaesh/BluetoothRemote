@@ -1,22 +1,25 @@
 
 package com.example.BluetoothRemote;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
-import java.util.HashSet;
-import java.util.Set;
-
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
 import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.AdapterView.OnItemClickListener;
+
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * This Activity appears as a dialog. It lists any bookmarks and
@@ -33,6 +36,7 @@ public class BookmarkListActivity extends Activity {
 
     // Return Intent extra
     public static String EXTRA_BOOKMARK_URL = "bookmark_url";
+    public static String EXTRA_BOOKMARK_OPEN = "bookmark_add"; // true for add, false for delete
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,12 +56,13 @@ public class BookmarkListActivity extends Activity {
         ListView bookmarkListView = (ListView) findViewById(R.id.bookmarks);
         bookmarkListView.setAdapter(mBookmarksArrayAdapter);
         bookmarkListView.setOnItemClickListener(mBookmarkClickListener);
+        bookmarkListView.setOnItemLongClickListener(mBookmarkLongClickListener);
 
         // Get a set of current bookmarks
         Set<String> bookmarks = new HashSet<String>();
 
         // add default value to avoid nullPointerException
-        bookmarks.add("http://www.google.com");
+        //bookmarks.add("http://www.google.com");
 
         try
         {
@@ -66,21 +71,19 @@ public class BookmarkListActivity extends Activity {
             String bookmark;
             bookmark = reader.readLine();
             while (bookmark != null){
-                System.err.println(bookmark);
                 bookmarks.add(bookmark);
                 bookmark = reader.readLine();
             }
             reader.close();
             fis.close();
         }
-        catch (Exception ex)
+        catch (Exception e)
         {
             // error
         }
 
         // If there are bookmarks, add each one to the ArrayAdapter
         if (bookmarks.size() > 0) {
-            findViewById(R.id.title_bookmarks).setVisibility(View.VISIBLE);
             for (String bookmark : bookmarks) {
                 mBookmarksArrayAdapter.add(bookmark);
             }
@@ -99,11 +102,62 @@ public class BookmarkListActivity extends Activity {
             // Create the result Intent
             Intent intent = new Intent();
             intent.putExtra(EXTRA_BOOKMARK_URL, url);
+            intent.putExtra(EXTRA_BOOKMARK_OPEN, true);
 
             // Set result and finish this Activity
             setResult(Activity.RESULT_OK, intent);
             finish();
         }
     };
+
+    // The on-long-click listener for all bookmarks in the ListView
+    private OnItemLongClickListener mBookmarkLongClickListener = new OnItemLongClickListener() {
+        public boolean onItemLongClick(AdapterView<?> av, View v, int arg2, long arg3) {
+            // Get the bookmark
+            String url = ((TextView) v).getText().toString();
+            confirmDelete(url);
+            return true;
+        }
+    };
+
+    /**
+     * Confirms deletion with the user. If "Yes" is selected,
+     * {@link #deleteBookmark(String)} is called to return the intent.
+     * @param url
+     * @see #deleteBookmark(String)
+     */
+    private void confirmDelete(final String url){
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Delete Bookmark?");
+        builder.setMessage("Are you sure you want to delete " + url + " from your bookmarks?");
+        builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                // Continue with delete
+                deleteBookmark(url);
+            }
+        });
+        builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                // Do nothing
+            }
+        });
+        builder.show();
+    }
+
+    /**
+     * Returns the Intent to the requesting Activity, and in turn,
+     * deleting the bookmark
+     * @param url
+     */
+    private void deleteBookmark(String url) {
+        // Create the result Intent
+        Intent intent = new Intent();
+        intent.putExtra(EXTRA_BOOKMARK_URL, url);
+        intent.putExtra(EXTRA_BOOKMARK_OPEN, false);
+
+        // Set result and finish this Activity
+        setResult(Activity.RESULT_OK, intent);
+        finish();
+    }
 
 }
