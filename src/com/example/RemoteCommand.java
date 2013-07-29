@@ -23,7 +23,6 @@ public class RemoteCommand implements Serializable {
 	public String string1 = ""; // String for textbox
 
 	public RemoteCommand() {
-		// TODO Auto-generated constructor stub
 	}
 
 	public static RemoteCommand getRemoteCommand(byte data[]) {
@@ -43,7 +42,6 @@ public class RemoteCommand implements Serializable {
 				bis.close();
 				in.close();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -60,14 +58,12 @@ public class RemoteCommand implements Serializable {
 			out.writeObject(this);
 			return bos.toByteArray();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} finally {
 			try {
 				out.close();
 				bos.close();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}

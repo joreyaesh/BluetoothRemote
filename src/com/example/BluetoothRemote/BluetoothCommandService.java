@@ -1,10 +1,6 @@
 
 package com.example.BluetoothRemote;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.UUID;
-
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
@@ -17,6 +13,10 @@ import android.view.MotionEvent;
 
 import com.example.RemoteCommand;
 import com.example.RemoteValues;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.UUID;
 
 /**
  * This class does all the work for setting up and managing Bluetooth
@@ -248,6 +248,10 @@ public class BluetoothCommandService {
         msg.setData(bundle);
         mHandler.sendMessage(msg);
 
+        // Set the state back to STATE_LISTEN
+        setState(STATE_LISTEN);
+
+
         // Start the service over to restart listening mode
         BluetoothCommandService.this.start();
     }
@@ -462,7 +466,7 @@ public class BluetoothCommandService {
         }
 
 
-            if((System.currentTimeMillis() / 10 - timeLastSend) > 1){ // lower amount of packets sent
+            if((System.currentTimeMillis() / 10 - timeLastSend) > 2){ // lower amount of packets sent
                 int x = (int) m.getX();
                 int y = (int) m.getY();
                 if(x != 0 || y != 0){

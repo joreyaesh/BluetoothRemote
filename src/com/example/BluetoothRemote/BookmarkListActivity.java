@@ -61,9 +61,6 @@ public class BookmarkListActivity extends Activity {
         // Get a set of current bookmarks
         Set<String> bookmarks = new HashSet<String>();
 
-        // add default value to avoid nullPointerException
-        //bookmarks.add("http://www.google.com");
-
         try
         {
             FileInputStream fis = openFileInput("bookmarks.txt");

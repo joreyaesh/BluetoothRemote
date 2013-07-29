@@ -9,9 +9,11 @@ import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.text.InputType;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -43,7 +45,10 @@ import java.io.OutputStreamWriter;
 public class BluetoothRemote extends Activity {
     // Debugging
     private static final String TAG = "BluetoothRemote";
-    private static final boolean D = true;
+    private static final boolean D = false;
+
+    // Preferences filename - used to store previously connected device
+    public static final String PREFS_NAME = "BluetoothRemotePrefsFile";
 
     // Message types sent from the BluetoothCommandService Handler
     public static final int MESSAGE_STATE_CHANGE = 1;
@@ -57,7 +62,6 @@ public class BluetoothRemote extends Activity {
     public static final String TOAST = "toast";
 
     // Intent request codes
-    private static final int REQUEST_CONNECT_DEVICE_SECURE = 1;
     private static final int REQUEST_QR_CODE = 2;
     private static final int REQUEST_ENABLE_BT = 3;
     private static final int REQUEST_BOOKMARK = 4;
@@ -142,9 +146,12 @@ public class BluetoothRemote extends Activity {
         }
 
         // Launch the qr code scanner for initial connection
-        IntentIntegrator integrator = new IntentIntegrator(this);
-        integrator.initiateScan();
+        //IntentIntegrator integrator = new IntentIntegrator(this);
+        //integrator.initiateScan();
 
+        // Restore previously connected device from preferences
+        SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
+        mConnectedDeviceAddress = settings.getString("deviceAddress", null);
     }
 
     @Override
@@ -181,7 +188,7 @@ public class BluetoothRemote extends Activity {
                 mCommandService.start();
             }
             // Attempt to connect to the last connected device
-            else if(mConnectedDeviceAddress != null &&
+            if(mConnectedDeviceAddress != null &&
                     mCommandService.getState() == BluetoothCommandService.STATE_LISTEN){
                 connectDevice(mConnectedDeviceAddress);
             }
@@ -205,6 +212,16 @@ public class BluetoothRemote extends Activity {
     public void onStop() {
         super.onStop();
         if(D) Log.e(TAG, "-- ON STOP --");
+
+        // Save previously connected device address to preferences for next time if not null
+        if(mConnectedDeviceAddress != null){
+            SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
+            SharedPreferences.Editor editor = settings.edit();
+            editor.putString("deviceAddress", mConnectedDeviceAddress);
+
+            // Commit the edits
+            editor.commit();
+        }
     }
 
     @Override
@@ -252,6 +269,7 @@ public class BluetoothRemote extends Activity {
                     setStatus(R.string.title_connecting);
                     break;
                 case BluetoothCommandService.STATE_LISTEN:
+                    setStatus(R.string.title_not_connected);
                     break;
                 case BluetoothCommandService.STATE_NONE:
                     setStatus(R.string.title_not_connected);
@@ -276,13 +294,6 @@ public class BluetoothRemote extends Activity {
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if(D) Log.d(TAG, "onActivityResult " + resultCode);
         switch (requestCode) {
-            case REQUEST_CONNECT_DEVICE_SECURE:
-                // When DeviceListActivity returns with a device to connect
-                if (resultCode == Activity.RESULT_OK) {
-                    connectDevice(data.getExtras()
-                            .getString(DeviceListActivity.EXTRA_DEVICE_ADDRESS));
-                }
-                break;
             case REQUEST_ENABLE_BT:
                 // When the request to enable Bluetooth returns
                 if (resultCode == Activity.RESULT_OK) {
@@ -341,8 +352,7 @@ public class BluetoothRemote extends Activity {
             for(String s : strings) {
                 builder.append(s);
             }
-            String address = builder.toString();
-            return address;
+            return builder.toString();
         } catch(NullPointerException e){
             toast("No QR code received");
             if(D)Log.d(TAG, "No QR code received");
@@ -373,11 +383,22 @@ public class BluetoothRemote extends Activity {
     public boolean onOptionsItemSelected(MenuItem item) {
         Intent serverIntent;
         switch (item.getItemId()) {
-            case R.id.secure_connect_scan:
-                // Launch the DeviceListActivity to see devices and do scan
-                serverIntent = new Intent(this, DeviceListActivity.class);
-                startActivityForResult(serverIntent, REQUEST_CONNECT_DEVICE_SECURE);
-                return true;
+            case R.id.reconnect:
+                // Attempt to reconnect to previously connected device
+                if(mConnectedDeviceAddress != null &&
+                        mCommandService.getState() == BluetoothCommandService.STATE_LISTEN){
+                    connectDevice(mConnectedDeviceAddress);
+                    return true;
+                }
+                else if(mCommandService.getState() != BluetoothCommandService.STATE_LISTEN){
+                    toast("There is already an active connection with " + mConnectedDeviceName);
+                    return false;
+                }
+                else{
+                    toast("Error connecting to device");
+                    return false;
+                }
+
             case R.id.discoverable:
                 // Ensure this device is discoverable by others
                 ensureDiscoverable();
@@ -418,8 +439,8 @@ public class BluetoothRemote extends Activity {
 
         // Set an EditText view to get user input
         final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_TEXT_VARIATION_URI);
         alert.setView(input);
-
         alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 String url = input.getText().toString();
